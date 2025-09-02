@@ -1,0 +1,86 @@
+---
+  - block:
+    - name: Insure temp path exists
+      file:
+        path: "{{ gcloud_tmp_path }}"
+        state: directory
+
+    #
+    # download
+    #
+    - name: Download the archive
+      get_url:
+        url: "{{ gcloud_archive_url }}/{{ gcloud_archive_name }}"
+        dest: "{{ gcloud_tmp_path }}/{{ gcloud_archive_name }}"
+        force: "{{ gcloud_force_download }}"
+    - set_fact:
+        gcloud_archive_path: "{{ gcloud_tmp_path }}/{{ gcloud_archive_name }}"
+
+    #
+    # copy from Ansible controller
+    #
+    - name: Copy the archive from the Ansible controller
+      copy:
+        src: "{{ gcloud_archive_path }}"
+        dest: "{{ gcloud_tmp_path }}"
+        remote_src: yes
+
+    - name: Remove existing google-cloud-sdk dir, it if exists
+      file:
+          path: "{{ gcloud_install_path }}/google-cloud-sdk"
+          state: absent
+
+    - set_fact:
+        archive_path: "{{ gcloud_tmp_path + '/' +  gcloud_archive_name }}"
+
+    - set_fact:
+        archive_path: "{{ gcloud_tmp_path + '/' + gcloud_archive_path | basename }}"
+
+    - name: Unarchive
+      shell: cd "{{ gcloud_install_path }}" && tar xvzf "{{ archive_path }}"
+
+    - name: Build run script
+      template:
+        src: "{{ role_path }}/templates/run.j2"
+        dest: "{{ gcloud_tmp_path }}/run_install.sh"
+        mode: 0755
+      tags:
+        - copy
+        - download
+
+    - name: Install
+      command: "{{ gcloud_tmp_path }}/run_install.sh"
+
+    - name: Add configuration directory
+      file:
+          path: "{{ gcloud_install_path }}/.config"
+          state: directory
+          mode: 0755
+    - name: Add configuration directory
+      file:
+          path: "{{ gcloud_install_path }}/.config/gcloud"
+          state: directory
+          mode: 0755
+    - name: Add configuration directory
+      file:
+          path: "{{ gcloud_install_path }}/.config/gcloud/configurations"
+          state: directory
+          mode: 0755
+    - name: Put in default config (not sure we can do the auth...)
+      template:
+        src: "default_config.j2"
+        dest: "{{ gcloud_install_path }}/.config/gcloud/configurations/config_default"
+        mode: 0644
+
+    - name: Remove the archive
+      file:
+        path: "{{ archive_path }}"
+        state: absent
+
+    - name: Remove the script
+      file:
+        path: "{{ gcloud_tmp_path }}/run_install.sh"
+        state: absent
+      when: not gcloud_debug
+
+    when: gcloud_archive_name is defined

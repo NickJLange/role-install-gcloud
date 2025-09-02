@@ -1,7 +1,7 @@
 ---
 # defaults file for role-install-gcloud
 
-gcloud_archive_name: 'google-cloud-sdk-455.0.0-linux-x86_64.tar.gz'                # Example: google-cloud-sdk-114.0.0-darwin-x86_64.tar.gz. If present, the archive will be downloaded.
+gcloud_archive_name: 'google-cloud-sdk-529.0.0-linux-x86_64.tar.gz'                # Example: google-cloud-sdk-114.0.0-darwin-x86_64.tar.gz. If present, the archive will be downloaded.
                                        # See https://cloud.google.com/sdk/ to find the archive name you need.
 gcloud_tmp_path: /tmp/install_gcloud   # Path where the downloaded archive can be temporarily placed
 gcloud_force_download: yes             # When downloading the archive, always download the archive, even if it already exists in the temp path.
@@ -20,3 +20,8 @@ gcloud_override_components: []    # Override the components that would be instal
 gcloud_additional_components: []  # Additional components to install by default. Will either be added to the default install
                                          # list, or to the override-components (if provided)
 gcloud_debug: yes
+
+
+gcloud_keyring_file: /usr/share/keyrings/cloud.google.gpg
+gcloud_keyring_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+gcloud_keyring_tmp_file: /tmp/cloud.google.gpg
