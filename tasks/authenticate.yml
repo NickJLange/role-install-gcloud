@@ -1,0 +1,18 @@
+---
+    - name: Copy the archive from the Ansible controller
+      copy:
+        src: "{{ gcloud_credentials }}"
+        dest: "/home/njl/.config/gcloud/{{ gcloud_credentials }}"
+        mode: 0600
+    - name: Authenticate with Google Cloud
+      ansible.builtin.shell: 
+        cmd: "gcloud auth login --creds-file=/home/njl/.config/gcloud/{{ gcloud_credentials }}"
+      register: gcloud_auth_status
+    - name: Check the authentication status
+      ansible.builtin.debug:
+        msg: "{{ gcloud_auth_status.stdout }}"
+    - name: Set the default project
+      ansible.builtin.shell:
+        cmd: "gcloud config set project {{ gcloud_project }}"
+      register: gcloud_project_status
+      

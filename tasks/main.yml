@@ -1,65 +1,59 @@
 ---
-- name: Insure temp path exists
-  file:
-    path: "{{ gcloud_tmp_path }}"
-    state: directory
+- name: "Install GCloud Main"
+  become: true
+  become_user: root
+  block:
+  #
+  # download
+  #
 
-#
-# download
-#
-- name: Download the archive
-  get_url:
-    url: "{{ gcloud_archive_url }}/{{ gcloud_archive_name }}"
-    dest: "{{ gcloud_tmp_path }}/{{ gcloud_archive_name }}"
-    force: "{{ gcloud_force_download }}" 
-  when: gcloud_archive_name 
-
-#
-# copy from Ansible controller
-#
-- name: Copy the archive from the Ansible controller
-  copy:
-    src: "{{ gcloud_archive_path }}"
-    dest: "{{ gcloud_tmp_path }}"
-  when: gcloud_archive_path
-
-- name: Remove existing google-cloud-sdk dir, it if exists
-  file:
-      path: "{{ gcloud_install_path }}/google-cloud-sdk"
-      state: absent
-  when: gcloud_archive_name
-
-- set_fact:
-    archive_path: "{{ gcloud_tmp_path + '/' +  gcloud_archive_name }}" 
-  when: gcloud_archive_name
-
-- set_fact:
-    archive_path: "{{ gcloud_tmp_path + '/' + gcloud_archive_path | basename }}"
-  when: gcloud_archive_path
-
-- name: Unarchive
-  shell: cd "{{ gcloud_install_path }}" && tar xvzf "{{ archive_path }}"
-  when: gcloud_archive_name
-
-- name: Build run script
-  template:
-    src: "{{ role_path }}/templates/run.j2"  
-    dest: "{{ gcloud_tmp_path }}/run_install.sh"
-    mode: 0755
-  tags:
-    - copy
-    - download
-
-- name: Install
-  command: "{{ gcloud_tmp_path }}/run_install.sh"
-
-- name: Remove the archive
-  file:
-    path: "{{ archive_path }}"
-    state: absent
-
-- name: Remove the script
-  file:
-    path: "{{ gcloud_tmp_path }}/run_install.sh"
-    state: absent
-  when: not gcloud_debug 
+    - name: "Remove old key"
+      ansible.builtin.file:
+        name: "{{ gcloud_keyring_file }}"
+        state: absent
+    - name: Download the Keyring
+      ansible.builtin.get_url:
+        url: "{{ gcloud_keyring_url }}"
+        dest: "{{ gcloud_keyring_tmp_file }}"
+        force: true
+        mode: "0644"
+    - name: DeArmor the Keyring
+      ansible.builtin.shell: "gpg --yes --batch --dearmor -o {{ gcloud_keyring_file }} {{ gcloud_keyring_tmp_file }}"
+    - name: Somerepo | apt source
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        filename: "google-cloud-sdk"
+        state: present
+    - name: Install the Google Cloud SDK
+      ansible.builtin.apt:
+        name: google-cloud-cli
+        state: present
+        update_cache: true
+        cache_valid_time: 84600
+        force_apt_get: true
+- name: "config cloud auth "
+  become: true
+  become_user: "{{ local_ssh_user }}"
+  block:
+    - name: "Add gcloud config"
+      ansible.builtin.file:
+        name: "/home/njl/.config/gcloud/"
+        state: directory
+        mode: "0700"
+    - name: Copy the archive from the Ansible controller
+      ansible.builtin.copy:
+        src: "{{ gcloud_credentials }}"
+        dest: "/home/njl/.config/gcloud/{{ gcloud_credentials }}"
+        mode: "0600"
+    - name: Authenticate with Google Cloud
+      ansible.builtin.shell:
+        cmd: "gcloud auth login --cred-file=/home/njl/.config/gcloud/{{ gcloud_credentials }}"
+      register: gcloud_auth_status
+    - name: Check the authentication status
+      ansible.builtin.debug:
+        msg: "{{ gcloud_auth_status.stdout }}"
+    - name: Set the default project
+      ansible.builtin.shell:
+        cmd: "gcloud config set project {{ gcloud_project }}"
+      register: gcloud_project_status
+      
