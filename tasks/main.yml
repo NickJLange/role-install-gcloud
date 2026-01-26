@@ -31,29 +31,11 @@
         update_cache: true
         cache_valid_time: 84600
         force_apt_get: true
-- name: "config cloud auth "
-  become: true
-  become_user: "{{ local_ssh_user }}"
-  block:
-    - name: "Add gcloud config"
-      ansible.builtin.file:
-        name: "/home/njl/.config/gcloud/"
-        state: directory
-        mode: "0700"
-    - name: Copy the archive from the Ansible controller
-      ansible.builtin.copy:
-        src: "{{ gcloud_credentials }}"
-        dest: "/home/njl/.config/gcloud/{{ gcloud_credentials }}"
-        mode: "0600"
-    - name: Authenticate with Google Cloud
-      ansible.builtin.shell:
-        cmd: "gcloud auth login --cred-file=/home/njl/.config/gcloud/{{ gcloud_credentials }}"
-      register: gcloud_auth_status
-    - name: Check the authentication status
-      ansible.builtin.debug:
-        msg: "{{ gcloud_auth_status.stdout }}"
-    - name: Set the default project
-      ansible.builtin.shell:
-        cmd: "gcloud config set project {{ gcloud_project }}"
-      register: gcloud_project_status
+
+# For authentication, use deploy_oauth_credentials.yml via:
+#   ansible-playbook -e hostlist=hostname playbooks/gcloud-credentials-deploy.yml
+# Or include directly:
+#   ansible.builtin.include_role:
+#     name: role-install-gcloud
+#     tasks_from: deploy_oauth_credentials.yml
       
